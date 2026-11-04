@@ -1,0 +1,7 @@
+# Pinned gitleaks config (design-v2 §7.1, §7.5): the built-in rule set of the pinned version.
+# A repository's .gitleaks.toml and .gitleaksignore are never read (--config, -i <empty dir>), and
+# `gitleaks:allow` comments are ignored (--ignore-gitleaks-allow).
+title = "myrabbit pinned gitleaks config"
+
+[extend]
+useDefault = true

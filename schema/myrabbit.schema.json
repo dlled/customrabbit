@@ -1,0 +1,630 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/dlled/customrabbit/main/schema/myrabbit.schema.json",
+  "type": "object",
+  "properties": {
+    "version": {
+      "default": 1,
+      "type": "number",
+      "const": 1
+    },
+    "profile": {
+      "default": "chill",
+      "type": "string",
+      "enum": [
+        "quiet",
+        "chill",
+        "assertive"
+      ]
+    },
+    "request_changes_threshold": {
+      "default": "major",
+      "type": "string",
+      "enum": [
+        "critical",
+        "major",
+        "minor"
+      ]
+    },
+    "language": {
+      "default": "en-US",
+      "type": "string",
+      "maxLength": 35,
+      "pattern": "\\S"
+    },
+    "tone_instructions": {
+      "default": "",
+      "type": "string",
+      "maxLength": 250
+    },
+    "style_guide": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "auto": {
+          "default": true,
+          "type": "boolean"
+        },
+        "files": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\/)(?!.*\\\\)(?!(?:.*\\/)?\\.\\.(?:\\/|$))(?!\\s*$)"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "path_filters": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!!?\\s*$)"
+      }
+    },
+    "path_instructions": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "\\S"
+          },
+          "instructions": {
+            "type": "string",
+            "maxLength": 20000,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "path",
+          "instructions"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "auto_review": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "drafts": {
+          "default": false,
+          "type": "boolean"
+        },
+        "ignore_title_keywords": {
+          "default": [
+            "WIP",
+            "[skip review]"
+          ],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "\\S"
+          }
+        },
+        "labels": {
+          "default": [
+            "!no-myrabbit"
+          ],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!!?\\s*$)"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "engines": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "claude": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "type": "boolean"
+            },
+            "model": {
+              "default": "claude-opus-5-5",
+              "type": "string",
+              "pattern": "\\S"
+            },
+            "effort": {
+              "default": "high",
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ]
+            },
+            "max_turns": {
+              "default": 40,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "max_budget_usd": {
+              "default": 3,
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            }
+          },
+          "additionalProperties": false
+        },
+        "codex": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "type": "boolean"
+            },
+            "model": {
+              "default": null,
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "\\S"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "effort": {
+              "default": "high",
+              "type": "string",
+              "enum": [
+                "minimal",
+                "low",
+                "medium",
+                "high",
+                "xhigh",
+                "max"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "timeout_minutes": {
+          "default": 12,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 25
+        }
+      },
+      "additionalProperties": false,
+      "not": {
+        "type": "object",
+        "properties": {
+          "claude": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          },
+          "codex": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "const": false
+              }
+            },
+            "required": [
+              "enabled"
+            ]
+          }
+        },
+        "required": [
+          "claude",
+          "codex"
+        ]
+      }
+    },
+    "limits": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "max_files": {
+          "default": 150,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "max_diff_bytes": {
+          "default": 400000,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "max_inline_comments": {
+          "default": 15,
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        }
+      },
+      "additionalProperties": false
+    },
+    "context": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "max_chars": {
+          "default": 60000,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200000
+        },
+        "max_usages_per_symbol": {
+          "default": 8,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "typescript": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rule_packs": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "typescript": {
+          "default": false,
+          "type": "boolean"
+        },
+        "python": {
+          "default": false,
+          "type": "boolean"
+        },
+        "go": {
+          "default": false,
+          "type": "boolean"
+        },
+        "rust": {
+          "default": false,
+          "type": "boolean"
+        },
+        "shell": {
+          "default": false,
+          "type": "boolean"
+        },
+        "github_actions": {
+          "default": false,
+          "type": "boolean"
+        },
+        "dockerfile": {
+          "default": false,
+          "type": "boolean"
+        },
+        "sql": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "learnings": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "propose": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "walkthrough": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "effort": {
+          "default": false,
+          "type": "boolean"
+        },
+        "merge_risk": {
+          "default": false,
+          "type": "boolean"
+        },
+        "ai_agent_prompts": {
+          "default": false,
+          "type": "boolean"
+        },
+        "related": {
+          "default": false,
+          "type": "boolean"
+        },
+        "suggested_reviewers": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "labels": {
+      "default": [],
+      "maxItems": 30,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50,
+            "pattern": "^\\S(?:[^\\r\\n]*\\S)?$"
+          },
+          "instructions": {
+            "default": "",
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pre_merge_checks": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "title": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "mode": {
+              "default": "off",
+              "type": "string",
+              "enum": [
+                "off",
+                "warning",
+                "error"
+              ]
+            },
+            "requirements": {
+              "default": "",
+              "type": "string",
+              "maxLength": 10000
+            }
+          },
+          "additionalProperties": false
+        },
+        "description": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "mode": {
+              "default": "off",
+              "type": "string",
+              "enum": [
+                "off",
+                "warning",
+                "error"
+              ]
+            },
+            "requirements": {
+              "default": "",
+              "type": "string",
+              "maxLength": 10000
+            }
+          },
+          "additionalProperties": false
+        },
+        "docstrings": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "mode": {
+              "default": "off",
+              "type": "string",
+              "enum": [
+                "off",
+                "warning",
+                "error"
+              ]
+            },
+            "threshold": {
+              "default": 80,
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "additionalProperties": false
+        },
+        "linked_issues": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "mode": {
+              "default": "off",
+              "type": "string",
+              "enum": [
+                "off",
+                "warning",
+                "error"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "custom": {
+          "default": [],
+          "maxItems": 5,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 50,
+                "pattern": "^\\S(?:[^\\r\\n]*\\S)?$"
+              },
+              "mode": {
+                "default": "off",
+                "type": "string",
+                "enum": [
+                  "off",
+                  "warning",
+                  "error"
+                ]
+              },
+              "instructions": {
+                "type": "string",
+                "maxLength": 10000,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "name",
+              "instructions"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "tools": {
+      "default": {},
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "type": "boolean"
+        },
+        "shellcheck": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "actionlint": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "hadolint": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "zizmor": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ruff": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "yamllint": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "squawk": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "gitleaks": {
+          "default": {},
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "default": false,
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "title": "myrabbit configuration (.myrabbit.yaml v1)",
+  "description": "Read from the PR's base SHA. Any validation error makes myrabbit ignore the whole file and use the defaults."
+}

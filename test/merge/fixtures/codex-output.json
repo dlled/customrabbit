@@ -1,0 +1,53 @@
+{
+  "summary": "Session auth via tokens plus a page helper.",
+  "changes": [
+    { "area": "auth", "files": ["src/auth.ts"], "summary": "Token check" },
+    { "area": 7, "files": "bad", "summary": null }
+  ],
+  "findings": [
+    {
+      "path": "src/auth.ts", "line": 13, "end_line": null, "side": "RIGHT",
+      "severity": "critical", "category": "security",
+      "title": "Token compared with == allows a timing attack",
+      "body": "Using == on secrets leaks timing; use timingSafeEqual.",
+      "failure_scenario": "Remote attacker recovers a valid session token via timing.",
+      "evidence": ["src/auth.ts:13", "src/session.ts:40"],
+      "rule": null,
+      "suggestion": null,
+      "confidence": 0.9
+    },
+    {
+      "path": "src/util.ts", "line": 90, "end_line": null, "side": "RIGHT",
+      "severity": "critical", "category": "correctness",
+      "title": "Page cache is never invalidated",
+      "body": "The new helper writes to a module cache that nothing clears.",
+      "failure_scenario": "After an update, page() keeps returning stale rows forever.",
+      "evidence": ["src/util.ts:90", "src/util.ts:3"],
+      "rule": null,
+      "suggestion": null,
+      "confidence": 0.75
+    },
+    {
+      "path": "src/util.ts", "line": 15, "end_line": null, "side": "RIGHT",
+      "severity": "trivial", "category": "style",
+      "title": "Prefer const for pageSize",
+      "body": "pageSize is never reassigned.",
+      "failure_scenario": "None at runtime; readability only.",
+      "evidence": ["src/util.ts:15"],
+      "rule": null,
+      "suggestion": "const pageSize = 10;",
+      "confidence": 0.4
+    },
+    {
+      "path": "src/auth.ts", "line": 41, "end_line": null, "side": "LEFT",
+      "severity": "major", "category": "security",
+      "title": "Removed rate limit on login",
+      "body": "The deleted lines removed the login rate limiter.",
+      "failure_scenario": "Unlimited password guessing against /login.",
+      "evidence": [],
+      "rule": null,
+      "suggestion": null,
+      "confidence": 0.6
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+profile: loud
+limits:
+  max_files: "many"
+tone_instructions: 7

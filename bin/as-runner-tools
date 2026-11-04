@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Runs one pinned static-analysis tool as the RUNNER user: the isolation "none" counterpart of
+# bin/as-tools (design-v2 §7.3). Same interface:
+#
+#   bin/as-runner-tools <absolute tool executable> <args...>
+#   bin/as-runner-tools --kill-all
+#
+# There is no guest user here, so the tool can read everything the runner user can; the
+# orchestrator prints a ::warning:: saying so. What still holds: the tool sees an empty environment
+# except PATH, HOME (a fresh temp dir, removed afterwards) and LANG, so no secret or ACTIONS_*/
+# GITHUB_* variable reaches it, and no process it starts outlives its run.
+#
+# The tool runs in its own process group, whose id is kept in .myrabbit-tool-pgid in the cwd
+# (src/tools/exec.ts gives every run the install's own cwd/ dir). When the tool exits, the whole
+# group is killed; `--kill-all` (exec.ts on timeout and abort) kills the group of the running tool.
+# A process that leaves the group on purpose (setsid) is not covered: that is the isolation "none"
+# trade-off.
+set -euo pipefail
+
+pgid_file="$PWD/.myrabbit-tool-pgid"
+
+kill_group() {
+  local pg
+  if [[ -f "$pgid_file" ]]; then
+    pg="$(cat -- "$pgid_file" 2>/dev/null || true)"
+    if [[ "$pg" =~ ^[1-9][0-9]*$ ]]; then kill -KILL -- "-$pg" 2>/dev/null || true; fi
+    rm -f -- "$pgid_file"
+  fi
+}
+
+if [[ "${1:-}" == "--kill-all" ]]; then
+  kill_group
+  exit 0
+fi
+
+tool="${1:-}"
+if [[ -z "$tool" || "$tool" != /* || ! -f "$tool" || ! -x "$tool" ]]; then
+  echo "as-runner-tools: the first argument must be the absolute path of an executable file" >&2
+  exit 127
+fi
+shift
+
+home="$(mktemp -d "${TMPDIR:-/tmp}/myrabbit-tool-home.XXXXXX")"
+chmod 0700 "$home"
+# shellcheck disable=SC2329 # run by the trap below
+cleanup() {
+  kill_group
+  rm -rf -- "$home"
+}
+trap cleanup EXIT
+
+# Job control for the launch only: the tool becomes the leader of a new process group (pgid = its
+# pid). stdin stays /dev/null, as exec.ts gives the wrapper none.
+set -m
+/usr/bin/env -i PATH=/usr/bin:/bin "HOME=$home" LANG=C.UTF-8 "$tool" "$@" </dev/null &
+child=$!
+set +m
+echo "$child" >"$pgid_file"
+
+code=0
+wait "$child" || code=$?
+exit "$code"

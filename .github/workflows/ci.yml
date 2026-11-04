@@ -1,0 +1,60 @@
+# myrabbit's own CI on WTR (design.md §12). dlled/customrabbit is not onboarded on the host yet, so
+# this ships dispatch-only; after the host operator onboards it and the manual pilot passes,
+# a second PR enables push/pull_request (wtr-ci docs/onboarding.md §5). Until then run the same
+# commands locally.
+name: ci
+on:
+  workflow_dispatch:
+  # step 2, after the manual WTR pilot:
+  # push:
+  #   branches: [main]
+  # pull_request:
+  #   branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    if: >-
+      !endsWith(github.actor, '[bot]') && (
+        github.event_name != 'pull_request' || (
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          !endsWith(github.event.pull_request.user.login, '[bot]')))
+    runs-on: [self-hosted, wtr-ci, "wtr-${{ github.run_id }}-${{ github.run_attempt }}-quality"]
+    timeout-minutes: 30
+    steps:
+      - name: Guest dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libatomic1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: actionlint (pinned binary, checksum verified)
+        run: |
+          set -euo pipefail
+          version=1.7.12
+          sha256=8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+          tarball="actionlint_${version}_linux_amd64.tar.gz"
+          dir="$(mktemp -d)"
+          curl -fsSL --retry 3 -o "$dir/$tarball" "https://github.com/rhysd/actionlint/releases/download/v${version}/${tarball}"
+          echo "$sha256  $dir/$tarball" | sha256sum -c -
+          tar -xzf "$dir/$tarball" -C "$dir" actionlint
+          # .github/actionlint.yaml declares the WTR labels; examples/caller.yml is linted too.
+          "$dir/actionlint" .github/workflows/*.yml examples/caller.yml
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck # explicit: vitest does not typecheck
+      - run: npm test
+      - run: npm run build
+      - name: dist/ matches a fresh build
+        run: |
+          git diff --exit-code -- dist/
+          untracked="$(git ls-files --others --exclude-standard -- dist/)"
+          if [[ -n "$untracked" ]]; then
+            echo "::error::untracked files in dist/ after build: $untracked"
+            exit 1
+          fi

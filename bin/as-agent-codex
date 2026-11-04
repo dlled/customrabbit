@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# Runs the real Codex CLI as the unprivileged guest user myrabbit-codex (CODEX_AGENT_USER in src/engines/users.ts) (design.md §9.2).
+# The SDK calls this file (codexPathOverride) with the CLI's own arguments. The real binary comes
+# from MYRABBIT_CODEX_BIN, set by the orchestrator and not in the allowlist. Only the allowlisted
+# variables reach the CLI, through the environment, never on the command line; the credential is
+# $CODEX_HOME/auth.json. Keep the list equal to CODEX_AGENT_ENV_ALLOWLIST in src/env.ts
+# (test/engines/wrappers.test.ts).
+#
+# --output-schema: the SDK writes the schema into its own 0700 temp dir, owned by the runner, which
+# myrabbit-codex cannot read. As the runner, the file is copied into a fresh /tmp dir (dir 0755,
+# file 0644; a JSON schema is not secret) and the argument is rewritten. The CLI then runs as a
+# child, not via exec, so the dir is removed after it exits; TERM/INT are forwarded (the SDK's
+# abort) and the exit code is passed through.
+#
+# Signals: every trap is installed first. A TERM/INT is recorded in `pending` (bash runs a trap
+# handler between commands, so an assignment like `schema_dir=$(mktemp …)` completes first) and
+# forwarded to the CLI once it exists (and repeated until it exits, see the wait loop); before the
+# CLI starts, a pending signal ends the wrapper with 128+n. The EXIT trap removes whatever schema
+# dir exists. So no window leaks the dir or leaves the CLI running unsignalled.
+set -euo pipefail
+
+pending=""
+child=""
+schema_dir=""
+
+# shellcheck disable=SC2329 # run by the traps below
+cleanup() {
+  if [[ -n "$schema_dir" ]]; then rm -rf -- "$schema_dir"; fi
+}
+
+# shellcheck disable=SC2329 # run by the traps below
+on_signal() {
+  pending="$1"
+  if [[ -n "$child" ]]; then kill "-$1" "$child" 2>/dev/null || true; fi
+}
+
+# Before the CLI exists: stop now, as the signal would have.
+exit_if_pending() {
+  if [[ -n "$pending" ]]; then exit $((128 + $(kill -l "$pending"))); fi
+}
+
+trap cleanup EXIT
+trap 'on_signal TERM' TERM
+trap 'on_signal INT' INT
+
+real_bin="${MYRABBIT_CODEX_BIN:-}"
+if [[ -z "$real_bin" || "$real_bin" != /* || ! -f "$real_bin" || ! -x "$real_bin" ]]; then
+  echo "as-agent-codex: MYRABBIT_CODEX_BIN must be the absolute path of an executable file" >&2
+  exit 127
+fi
+unset MYRABBIT_CODEX_BIN
+
+readonly MAX_SCHEMA_BYTES=1048576
+schema_count=0
+schema_out=""
+
+# Copies $1 into $schema_dir and sets schema_out to the copy. Only a regular file (not a symlink)
+# of at most MAX_SCHEMA_BYTES is copied.
+copy_schema() {
+  local src="$1" size
+  exit_if_pending
+  if [[ -z "$src" || -L "$src" || ! -f "$src" || ! -r "$src" ]]; then
+    echo "as-agent-codex: --output-schema must name a readable regular file" >&2
+    exit 2
+  fi
+  size=$(wc -c < "$src")
+  if (( size > MAX_SCHEMA_BYTES )); then
+    echo "as-agent-codex: --output-schema file is too large" >&2
+    exit 2
+  fi
+  if [[ -z "$schema_dir" ]]; then
+    schema_dir=$(mktemp -d /tmp/myrabbit-codex-schema.XXXXXX)
+    chmod 0755 "$schema_dir"
+  fi
+  schema_count=$((schema_count + 1))
+  schema_out="$schema_dir/schema-$schema_count.json"
+  cp -- "$src" "$schema_out"
+  chmod 0644 "$schema_out"
+}
+
+args=()
+expect_schema=0
+options_done=0
+for a in "$@"; do
+  if (( expect_schema )); then
+    copy_schema "$a"
+    args+=("$schema_out")
+    expect_schema=0
+  elif (( options_done )); then
+    args+=("$a")
+  else
+    case "$a" in
+      --) options_done=1; args+=("$a") ;;
+      --output-schema) expect_schema=1; args+=("$a") ;;
+      --output-schema=*) copy_schema "${a#--output-schema=}"; args+=("--output-schema=$schema_out") ;;
+      *) args+=("$a") ;;
+    esac
+  fi
+done
+if (( expect_schema )); then
+  echo "as-agent-codex: --output-schema needs a file argument" >&2
+  exit 2
+fi
+
+# shellcheck disable=SC2054 # the comma list is one sudo argument, not array separators
+sudo_cmd=(sudo -n -u myrabbit-codex --preserve-env=PATH,HOME,CODEX_HOME -- "$real_bin")
+
+if [[ -z "$schema_dir" ]]; then
+  # No schema, so no child to wait for: exec as before. The default dispositions come back first,
+  # so a TERM/INT after the check kills the wrapper before exec, or the CLI after it, instead of
+  # only setting `pending`, which exec would drop.
+  trap - TERM INT
+  exit_if_pending
+  exec "${sudo_cmd[@]}" ${args[@]+"${args[@]}"}
+fi
+exit_if_pending
+
+# Without job control bash starts a background job with stdin from /dev/null and SIGINT/SIGQUIT
+# ignored, and an ignored signal cannot be reset in the child. So job control is on for the launch
+# only (the child keeps default dispositions, so a forwarded INT reaches the CLI), and stdin is
+# passed explicitly (the SDK writes the prompt to the CLI's stdin).
+set -m
+"${sudo_cmd[@]}" ${args[@]+"${args[@]}"} <&0 &
+child=$!
+set +m
+# A trapped signal interrupts wait early; keep waiting until the child has really exited, then
+# read its own status (bash keeps it for the reaped child). Once a signal is pending it is sent
+# again until the child is gone: one that arrived before `child=$!` was only recorded, and one
+# that reaches the child between fork and exec is caught by the trap it inherited and lost.
+set +e
+while kill -0 "$child" 2>/dev/null; do
+  if [[ -n "$pending" ]]; then
+    kill "-$pending" "$child" 2>/dev/null
+    sleep 0.1
+  else
+    wait "$child"
+  fi
+done
+wait "$child"
+rc=$?
+set -e
+exit "$rc"

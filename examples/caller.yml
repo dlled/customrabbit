@@ -1,0 +1,41 @@
+# customrabbit on a GitHub-hosted runner, with one engine and an API key.
+# Copy into the target repository as .github/workflows/customrabbit.yml and replace the all-zero
+# SHA with a release SHA of dlled/customrabbit (README "Releases"), never a branch.
+#
+# isolation none: the engine runs as the runner user and can read its own API key. Prompt
+# injection in PR or issue text could leak it into the posted review, so use a key you can rotate
+# (README "Security model"). isolation none allows one engine only.
+name: customrabbit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr: { description: "PR number to review", required: true, type: number }
+permissions:
+  contents: read
+concurrency:
+  group: customrabbit-${{ github.repository }}-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+jobs:
+  customrabbit:
+    # No forks and no bots: a fork's PR never gets the secrets or a runner.
+    if: >-
+      !endsWith(github.actor, '[bot]') && (
+        github.event_name == 'workflow_dispatch' || (
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          !endsWith(github.event.pull_request.user.login, '[bot]')))
+    permissions:
+      contents: read # GITHUB_TOKEN stays read-only; GitHub writes use the App token
+    uses: dlled/customrabbit/.github/workflows/review.yml@0000000000000000000000000000000000000000 # release SHA
+    with:
+      pr: ${{ fromJSON(format('{0}', inputs.pr || 0)) }} # dispatch inputs arrive as strings
+      runs-on: '["ubuntu-latest"]'
+      trusted-authors: your-login,a-teammate # the PR authors customrabbit may review
+      isolation: none
+      engines: claude # isolation none runs one engine only
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      MYRABBIT_APP_CLIENT_ID: ${{ secrets.MYRABBIT_APP_CLIENT_ID }}
+      MYRABBIT_APP_PRIVATE_KEY: ${{ secrets.MYRABBIT_APP_PRIVATE_KEY }}

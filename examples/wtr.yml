@@ -1,0 +1,39 @@
+# Optional profile: customrabbit on a WTR host (ephemeral-VM GitHub runners). WTR gives each job a
+# fresh VM that is destroyed afterwards, selected by exactly three labels: self-hosted, wtr-ci,
+# and a unique "wtr-<run_id>-<attempt>-<job key>" label. Inside review.yml the job key is `review`.
+# The host must allowlist this workflow path and the PR authors; keep `trusted-authors` equal to
+# the host's actors for this repository. Guest-user isolation (the default) and both engines.
+# Copy into the target repository as .github/workflows/customrabbit.yml and replace the all-zero
+# SHA with a release SHA of dlled/customrabbit (README "Releases").
+name: customrabbit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr: { description: "PR number to review", required: true, type: number }
+permissions:
+  contents: read
+concurrency:
+  group: customrabbit-${{ github.repository }}-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+jobs:
+  customrabbit:
+    if: >-
+      !endsWith(github.actor, '[bot]') && (
+        github.event_name == 'workflow_dispatch' || (
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          !endsWith(github.event.pull_request.user.login, '[bot]')))
+    permissions:
+      contents: read
+    uses: dlled/customrabbit/.github/workflows/review.yml@0000000000000000000000000000000000000000 # release SHA
+    with:
+      pr: ${{ fromJSON(format('{0}', inputs.pr || 0)) }}
+      runs-on: '["self-hosted","wtr-ci","wtr-${{ github.run_id }}-${{ github.run_attempt }}-review"]'
+      trusted-authors: your-login
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+      MYRABBIT_APP_CLIENT_ID: ${{ secrets.MYRABBIT_APP_CLIENT_ID }}
+      MYRABBIT_APP_PRIVATE_KEY: ${{ secrets.MYRABBIT_APP_PRIVATE_KEY }}

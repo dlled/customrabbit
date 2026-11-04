@@ -1,0 +1,6 @@
+# Pinned hadolint config (design-v2 §7.1). A repository's .hadolint.yaml is never read, and inline
+# `# hadolint ignore=` pragmas are disabled on the command line (--disable-ignore-pragma).
+# Findings never change the exit code, so a non-zero exit always means the tool failed.
+no-fail: true
+failure-threshold: none
+ignored: []

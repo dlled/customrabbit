@@ -1,0 +1,12 @@
+profile: assertive
+request_changes_threshold: critical
+path_filters:
+  - "!**/fixtures/**"
+  - "**/*.csv"
+engines:
+  claude:
+    effort: max
+  codex:
+    enabled: false
+limits:
+  max_inline_comments: 5

@@ -1,0 +1,7 @@
+# actionlint config (ci.yml runs actionlint 1.7.12 on .github/workflows/*.yml and examples/caller.yml).
+# WTR jobs use exactly three labels: self-hosted, wtr-ci, "wtr-<run_id>-<attempt>-<job>".
+# `self-hosted` is built in. The third label contains ${{ }} expressions, which actionlint does
+# not check against this list, so no pattern is needed for it.
+self-hosted-runner:
+  labels:
+    - wtr-ci

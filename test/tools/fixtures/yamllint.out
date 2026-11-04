@@ -1,0 +1,2 @@
+/stage/conf.yaml:2:1: [error] duplication of key "key" in mapping (key-duplicates)
+/stage/conf.yaml:3:10: [error] truthy value should be one of [false, true] (truthy)

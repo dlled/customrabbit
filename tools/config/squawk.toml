@@ -1,0 +1,3 @@
+# Pinned squawk config (design-v2 §7.1). A repository's .squawk.toml is never read.
+# Every rule of the pinned version stays on; findings are confirmed or discarded by the engines.
+excluded_rules = []

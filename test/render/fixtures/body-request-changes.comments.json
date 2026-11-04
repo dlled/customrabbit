@@ -1,0 +1,22 @@
+[
+  {
+    "path": "src/db.ts",
+    "body": "**[critical · security]** SQL query built from request input\n\n`parse()` returns a new object; the caller keeps using the old one, so config edits are lost.\n\n**Fails when:** calling load() twice → the second call sees stale defaults\n\n```suggestion\nconst rows = await db.query('SELECT * FROM t WHERE id = $1', [id]);\n```\n\n<sub>found by claude+codex · confidence 0.95 · blocking</sub>\n<!-- myrabbit:f v=1 fp=000000000001 sev=critical blk=1 -->",
+    "line": 42,
+    "side": "RIGHT",
+    "start_line": 40,
+    "start_side": "RIGHT"
+  },
+  {
+    "path": "src/net.ts",
+    "body": "**[major · reliability]** Retry loop never gives up\n\n`parse()` returns a new object; the caller keeps using the old one, so config edits are lost.\n\n**Fails when:** calling load() twice → the second call sees stale defaults\n\n<sub>found by codex · confidence 0.70 · blocking · unverified (budget)</sub>\n<!-- myrabbit:f v=1 fp=000000000002 sev=major blk=1 -->",
+    "line": 7,
+    "side": "RIGHT"
+  },
+  {
+    "path": "src/util/slug.ts",
+    "body": "**[minor · maintainability]** Duplicate helper; reuse `toSlug` from utils\n\n`parse()` returns a new object; the caller keeps using the old one, so config edits are lost.\n\n**Fails when:** calling load() twice → the second call sees stale defaults\n\n<sub>found by claude+codex · confidence 0.70</sub>\n<!-- myrabbit:f v=1 fp=000000000006 sev=minor blk=0 -->",
+    "line": 4,
+    "side": "RIGHT"
+  }
+]

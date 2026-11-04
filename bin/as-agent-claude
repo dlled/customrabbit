@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Runs the real Claude Code CLI as the unprivileged guest user myrabbit-claude (CLAUDE_AGENT_USER in src/engines/users.ts) (design.md §9.2).
+# The SDK calls this file (pathToClaudeCodeExecutable) with the CLI's own arguments. The real
+# binary comes from MYRABBIT_CLAUDE_BIN, set by the orchestrator and not in the allowlist. Only the
+# allowlisted variables reach the CLI, through the environment, never on the command line.
+# Keep the list equal to CLAUDE_AGENT_ENV_ALLOWLIST in src/env.ts (test/engines/wrappers.test.ts).
+set -euo pipefail
+
+real_bin="${MYRABBIT_CLAUDE_BIN:-}"
+if [[ -z "$real_bin" || "$real_bin" != /* || ! -f "$real_bin" || ! -x "$real_bin" ]]; then
+  echo "as-agent-claude: MYRABBIT_CLAUDE_BIN must be the absolute path of an executable file" >&2
+  exit 127
+fi
+unset MYRABBIT_CLAUDE_BIN
+
+exec sudo -n -u myrabbit-claude --preserve-env=PATH,HOME,CLAUDE_CODE_OAUTH_TOKEN,ANTHROPIC_API_KEY,CLAUDE_AGENT_SDK_CLIENT_APP -- "$real_bin" "$@"

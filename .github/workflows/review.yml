@@ -1,0 +1,71 @@
+# Reusable workflow called by each target repository's .github/workflows/customrabbit.yml
+# (examples/). The caller chooses the runner (`runs-on`, a JSON list of labels) and the PR authors
+# customrabbit may review (`trusted-authors`); neither has a default, so nothing runs on a runner
+# or for an author nobody chose.
+# Never triggered by pull_request_target or workflow_run; callers skip forks and bots in their
+# `if:`. Every action is pinned by full SHA; secrets reach only the App-token step and the review
+# step; github.event.* and inputs.* expressions are never interpolated into `run:`.
+name: customrabbit review
+on:
+  workflow_call:
+    inputs:
+      pr: { type: number, required: false, default: 0 } # 0 = take the PR from the pull_request event
+      # JSON list of runner labels, e.g. '["ubuntu-latest"]' or '["self-hosted","linux","x64"]'.
+      runs-on: { type: string, required: true }
+      # Comma-separated GitHub logins whose PRs may be reviewed, e.g. "alice,bob".
+      trusted-authors: { type: string, required: true }
+      engines: { type: string, required: false, default: both } # both | claude | codex
+      isolation: { type: string, required: false, default: guest-users } # guest-users | none
+    secrets:
+      # Exactly one credential per selected engine; both set fails before any model call.
+      CLAUDE_CODE_OAUTH_TOKEN: { required: false }
+      ANTHROPIC_API_KEY: { required: false }
+      CODEX_AUTH_JSON: { required: false }
+      OPENAI_API_KEY: { required: false }
+      MYRABBIT_APP_CLIENT_ID: { required: true }
+      MYRABBIT_APP_PRIVATE_KEY: { required: true }
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ${{ fromJSON(inputs.runs-on) }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Guest dependencies
+        if: inputs.isolation != 'none'
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libatomic1 acl
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || format('refs/pull/{0}/head', inputs.pr) }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 24 }
+      - id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ secrets.MYRABBIT_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MYRABBIT_APP_PRIVATE_KEY }}
+          # Token scoped to the calling repository only. No `owner`: it defaults to the current
+          # repository owner, and setting it without `repositories` would widen the token to every
+          # repository of the installation.
+          repositories: ${{ github.event.repository.name }}
+          permission-pull-requests: write
+          permission-contents: read
+          permission-issues: read
+      # Two-commit release: scripts/release.sh rewrites this line to the reviewed code commit.
+      # The all-zero SHA means "not released yet" and fails loudly if called.
+      - uses: dlled/customrabbit@0000000000000000000000000000000000000000 # myrabbit-action-pin
+        with: # inputs, not env: env on a composite reaches every inner step
+          github-token: ${{ steps.app.outputs.token }}
+          bot-login: ${{ steps.app.outputs.app-slug }}[bot]
+          claude-oauth-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          codex-auth-json: ${{ secrets.CODEX_AUTH_JSON }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          engines: ${{ inputs.engines }}
+          isolation: ${{ inputs.isolation }}
+          pr: ${{ inputs.pr }} # 0 on pull_request events
+          trusted-authors: ${{ inputs.trusted-authors }}

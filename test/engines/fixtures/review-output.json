@@ -1,0 +1,23 @@
+{
+  "summary": "Adds a retry helper to the HTTP client and uses it in the sync job.",
+  "changes": [
+    { "area": "http", "files": ["src/http/retry.ts", "src/http/client.ts"], "summary": "New retry helper with exponential backoff." }
+  ],
+  "findings": [
+    {
+      "path": "src/http/retry.ts",
+      "line": 14,
+      "end_line": 16,
+      "side": "RIGHT",
+      "severity": "major",
+      "category": "correctness",
+      "title": "Retry loop never stops when maxAttempts is 0",
+      "body": "The loop condition uses `attempt !== maxAttempts`, so a value of 0 never matches after the first increment.",
+      "failure_scenario": "retry(fn, { maxAttempts: 0 }) with a failing fn loops forever.",
+      "evidence": ["src/http/retry.ts:14", "src/http/client.ts:42"],
+      "rule": null,
+      "suggestion": "  while (attempt < maxAttempts) {",
+      "confidence": 0.82
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+# Pinned actionlint config (design-v2 §7.1). A repository's own .github/actionlint.yaml is never read.
+# WTR jobs use exactly three labels: self-hosted, wtr-ci and a per-run wtr-<run>-<attempt>-<job> label.
+self-hosted-runner:
+  labels:
+    - wtr-ci
+    - wtr-*
+# Repository/organisation variables are unknown here; do not report every vars.X as undefined.
+config-variables: null

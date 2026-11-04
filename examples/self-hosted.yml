@@ -1,0 +1,40 @@
+# customrabbit on your own self-hosted runner, both engines, guest-user isolation (the default).
+# The runner needs passwordless sudo (it creates the unprivileged users myrabbit-claude,
+# myrabbit-codex and myrabbit-tools) and the acl package. Use an ephemeral runner (one job per
+# machine) if you can: the guest users and their ACLs then never outlive the job.
+# Copy into the target repository as .github/workflows/customrabbit.yml and replace the all-zero
+# SHA with a release SHA of dlled/customrabbit (README "Releases").
+name: customrabbit
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      pr: { description: "PR number to review", required: true, type: number }
+permissions:
+  contents: read
+concurrency:
+  group: customrabbit-${{ github.repository }}-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+jobs:
+  customrabbit:
+    if: >-
+      !endsWith(github.actor, '[bot]') && (
+        github.event_name == 'workflow_dispatch' || (
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          !endsWith(github.event.pull_request.user.login, '[bot]')))
+    permissions:
+      contents: read
+    uses: dlled/customrabbit/.github/workflows/review.yml@0000000000000000000000000000000000000000 # release SHA
+    with:
+      pr: ${{ fromJSON(format('{0}', inputs.pr || 0)) }}
+      runs-on: '["self-hosted","linux","x64"]'
+      trusted-authors: your-login,a-teammate
+    secrets:
+      # Exactly one per engine: CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY,
+      # and CODEX_AUTH_JSON or OPENAI_API_KEY.
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      MYRABBIT_APP_CLIENT_ID: ${{ secrets.MYRABBIT_APP_CLIENT_ID }}
+      MYRABBIT_APP_PRIVATE_KEY: ${{ secrets.MYRABBIT_APP_PRIVATE_KEY }}

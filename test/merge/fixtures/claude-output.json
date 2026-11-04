@@ -1,0 +1,64 @@
+{
+  "summary": "Adds token-based session auth and a pagination helper.",
+  "changes": [
+    { "area": "auth", "files": ["src/auth.ts"], "summary": "Session token check" },
+    { "area": "util", "files": ["src/util.ts"], "summary": "Pagination helper" }
+  ],
+  "findings": [
+    {
+      "path": "src/auth.ts", "line": 12, "end_line": null, "side": "RIGHT",
+      "severity": "major", "category": "security",
+      "title": "Token compared with `==` allows timing attack",
+      "body": "The session token is compared with a non-constant-time operator.",
+      "failure_scenario": "An attacker measures response times to recover the token byte by byte.",
+      "evidence": ["src/auth.ts:12"],
+      "rule": null,
+      "suggestion": "  return timingSafeEqual(Buffer.from(token), Buffer.from(expected));",
+      "confidence": 0.7
+    },
+    {
+      "path": "src/auth.ts", "line": 55, "end_line": 56, "side": "RIGHT",
+      "severity": "minor", "category": "maintainability",
+      "title": "Rename helper to describe its intent",
+      "body": "`doIt` hides what the helper does.",
+      "failure_scenario": "Readers misuse doIt for refresh tokens.",
+      "evidence": ["src/auth.ts:55"],
+      "rule": "Names describe intent (AGENTS.md)",
+      "suggestion": null,
+      "confidence": 0.6
+    },
+    {
+      "path": "./src/util.ts", "line": 5, "end_line": null, "side": "RIGHT",
+      "severity": "major", "category": "correctness",
+      "title": "Off-by-one in `slice` end index",
+      "body": "The page end index excludes the last item.",
+      "failure_scenario": "page(items, 0, 10) returns 9 items.",
+      "evidence": ["src/util.ts:5", "src/util.ts:9"],
+      "rule": null,
+      "suggestion": null,
+      "confidence": 0.8
+    },
+    {
+      "path": "src/util.ts", "line": 7, "end_line": null, "side": "RIGHT",
+      "severity": "major", "category": "reliability",
+      "title": "Missing error handling",
+      "body": "Speculative.",
+      "failure_scenario": "",
+      "evidence": ["src/util.ts:7"],
+      "rule": null,
+      "suggestion": null,
+      "confidence": 0.3
+    },
+    {
+      "path": "docs/other.md", "line": 3, "end_line": null, "side": "RIGHT",
+      "severity": "minor", "category": "docs",
+      "title": "Docs contradict behaviour",
+      "body": "Not in the diff.",
+      "failure_scenario": "Readers follow stale docs.",
+      "evidence": ["docs/other.md:3"],
+      "rule": null,
+      "suggestion": null,
+      "confidence": 0.5
+    }
+  ]
+}

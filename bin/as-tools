@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Runs one pinned static-analysis tool as the unprivileged guest user myrabbit-tools
+# (TOOLS_USER in src/engines/users.ts; design-v2 §7.3).
+#
+#   bin/as-tools <absolute tool executable> <args...>
+#   bin/as-tools --kill-all
+#
+# src/tools/exec.ts calls this with the tool and its §7.1 arguments, cwd = the install's empty
+# cwd/ dir. The tool sees an empty environment except PATH, HOME (its own) and LANG: no secrets,
+# no ACTIONS_*/GITHUB_*, no runner state. sudo is the same `-n -u` pattern as bin/as-agent-*.
+#
+# When the tool exits, every process myrabbit-tools still has is killed, so nothing a tool leaves
+# behind (a background child holding stdout, a process waiting for the next tool) outlives its
+# run. That also makes the world-writable /tmp, /var/tmp and /dev/shm harmless as a channel
+# between tools: nothing of one tool is alive when the next starts, and the staging and tool dirs
+# are runner-owned. `--kill-all` does only the kill; exec.ts uses it on timeout and abort.
+set -euo pipefail
+
+user=myrabbit-tools
+
+home="$(getent passwd "$user" | cut -d: -f6 || true)"
+if [[ -z "$home" || "$home" != /* ]]; then
+  echo "as-tools: guest user $user does not exist" >&2
+  exit 127
+fi
+
+# kill(-1) as the user signals every process of that user except the caller itself. One pass walks
+# the process list once, so a child forked mid-walk can survive it: repeat until kill(-1) finds
+# nothing left to signal (it then fails with ESRCH), bounded so a pathological fork loop cannot
+# keep this running.
+kill_all() {
+  sudo -n -u "$user" -- /usr/bin/env -i PATH=/usr/bin:/bin /bin/bash -c \
+    'for _ in {1..1000}; do kill -KILL -1 2>/dev/null || exit 0; done; exit 0' || true
+}
+
+if [[ "${1:-}" == "--kill-all" ]]; then
+  kill_all
+  exit 0
+fi
+
+tool="${1:-}"
+if [[ -z "$tool" || "$tool" != /* || ! -f "$tool" || ! -x "$tool" ]]; then
+  echo "as-tools: the first argument must be the absolute path of an executable file" >&2
+  exit 127
+fi
+shift
+
+code=0
+sudo -n -u "$user" -- /usr/bin/env -i PATH=/usr/bin:/bin "HOME=$home" LANG=C.UTF-8 "$tool" "$@" || code=$?
+kill_all
+exit "$code"

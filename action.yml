@@ -1,0 +1,236 @@
+name: myrabbit
+description: >-
+  Self-hosted PR reviewer: Claude Agent SDK + Codex SDK in parallel, one merged review (APPROVE or
+  REQUEST_CHANGES). Runs on any Linux runner; WTR ephemeral VMs are an optional profile.
+author: dlled
+
+inputs:
+  github-token:
+    description: Installation token of the myrabbit GitHub App (never the job GITHUB_TOKEN).
+    required: true
+  bot-login:
+    description: Login of the App bot, e.g. myrabbit[bot].
+    required: true
+  # Exactly one credential per selected engine; both set fails before any model call.
+  claude-oauth-token:
+    description: CLAUDE_CODE_OAUTH_TOKEN from `claude setup-token`. Or anthropic-api-key, never both.
+    required: false
+    default: ""
+  anthropic-api-key:
+    description: ANTHROPIC_API_KEY. Or claude-oauth-token, never both.
+    required: false
+    default: ""
+  codex-auth-json:
+    description: Access-token-only Codex auth.json (design.md §9.1), written by scripts/codex-auth-refresh.sh. Or openai-api-key, never both.
+    required: false
+    default: ""
+  openai-api-key:
+    description: OPENAI_API_KEY, stored by `codex login --with-api-key` in a fresh CODEX_HOME. Or codex-auth-json, never both.
+    required: false
+    default: ""
+  engines:
+    description: Engines to run, "both", "claude" or "codex". Each selected engine needs its credential.
+    required: false
+    default: both
+  isolation:
+    description: >-
+      "guest-users" (the engines and tools run as unprivileged guest users; needs passwordless sudo
+      and the acl package) or "none" (they run as the runner user and can read everything it can).
+    required: false
+    default: guest-users
+  pr:
+    description: PR number to review; 0 takes the PR from the pull_request event.
+    required: false
+    default: "0"
+  # No default: nobody is trusted unless the caller names them (review.yml always passes it).
+  trusted-authors:
+    description: Comma-separated PR authors myrabbit may review (on WTR, keep equal to the host `actors`).
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # No step before the last one sees any input: secrets are mapped to env on the node step only.
+    # No dependency cache, on purpose: a cache entry lives in the *target repo's* scope under a
+    # predictable key, so any other job there could save a poisoned node_modules that the node
+    # step would then load next to every credential. A cold, lockfile-verified install every run.
+    - name: Install myrabbit dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        node_major="$(node -p 'process.versions.node.split(".")[0]')"
+        if (( node_major < 24 )); then
+          echo "::error::myrabbit needs Node 24 or newer (found $(node --version)); add actions/setup-node first"
+          exit 1
+        fi
+        npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+
+    # design.md §9.2: one unprivileged guest user per engine (src/engines/users.ts). This is the
+    # throwaway VM, never the WTR host. Any failure here fails the job before a model call.
+    - name: Create engine guest users
+      if: inputs.isolation != 'none'
+      shell: bash
+      run: |
+        set -euo pipefail
+        users=(myrabbit-claude myrabbit-codex)
+        command -v setfacl >/dev/null || { echo "::error::setfacl not found: install the acl package before myrabbit"; exit 1; }
+        sudo -n true || { echo "::error::myrabbit needs passwordless sudo inside the VM"; exit 1; }
+
+        workspace="$(realpath "$GITHUB_WORKSPACE")"
+        action_path="$(realpath "$GITHUB_ACTION_PATH")"
+        runner_temp="$(realpath "$RUNNER_TEMP")"
+        runner_user="$(id -un)"
+        runner_home="$(realpath "$HOME")"
+
+        # Directories the guest users must reach: both targets and every ancestor up to /.
+        declare -A on_path=()
+        for target in "$workspace" "$action_path"; do
+          d="$target"
+          while :; do
+            on_path["$d"]=1
+            [[ "$d" == "/" ]] && break
+            d="$(dirname "$d")"
+          done
+        done
+
+        # Ancestors owned by the runner user (its home, the runner root, _work, _actions, ...) hold
+        # private files: .runner, .credentials*, _diag, .env, dotfiles, other actions. Guests get
+        # x (traverse) on every ancestor, so in a runner-owned ancestor every entry that is not on
+        # a path gets an explicit `u:<guest>:---` (it overrides the "other" bits), and a default
+        # ACL gives entries created there later the same deny. System directories are left alone.
+        ancestors=() private_dirs=() deny=()
+        for d in "${!on_path[@]}"; do
+          [[ "$d" == "$workspace" || "$d" == "$action_path" ]] && continue
+          ancestors+=("$d")
+          [[ "$(stat -c %U "$d")" == "$runner_user" ]] || continue
+          private_dirs+=("$d")
+          while IFS= read -r -d '' entry; do
+            [[ -n "${on_path[$entry]:-}" ]] && continue
+            # ACLs can't be set on a symlink, and setfacl would follow it: its target is either
+            # inside a denied directory or outside the runner's private tree.
+            [[ -L "$entry" ]] && continue
+            deny+=("$entry")
+          done < <(find "$d" -mindepth 1 -maxdepth 1 -print0)
+        done
+        # Runner credentials and RUNNER_TEMP explicitly, wherever they are.
+        for d in "${private_dirs[@]}" "$runner_home"; do
+          for f in .runner .credentials .credentials_rsaparams .env .path; do
+            [[ -e "$d/$f" && ! -L "$d/$f" ]] && deny+=("$d/$f")
+          done
+        done
+        deny+=("$runner_temp")
+        # One entry per path, in a stable order.
+        mapfile -t deny < <(printf '%s\n' "${deny[@]}" | sort -u)
+
+        for u in "${users[@]}"; do
+          if ! id -u "$u" >/dev/null 2>&1; then
+            sudo -n useradd --system --create-home --shell /usr/sbin/nologin "$u"
+          fi
+          home="$(getent passwd "$u" | cut -d: -f6)"
+          sudo -n chmod 0700 "$home"
+
+          sudo -n setfacl -m "u:${u}:x" -- "${ancestors[@]}"
+          sudo -n setfacl -R -m "u:${u}:rX" -- "$workspace" "$action_path"
+          sudo -n setfacl -m "u:${u}:---" -- "${deny[@]}"
+          if (( ${#private_dirs[@]} > 0 )); then
+            sudo -n setfacl -d -m "u:${u}:---" -- "${private_dirs[@]}"
+          fi
+
+          # Verify as the guest user, before any credential exists: it reaches the checkout and
+          # the action, and can neither read nor enter anything denied.
+          sudo -n -u "$u" -- test -r "$workspace" -a -x "$workspace"
+          sudo -n -u "$u" -- test -r "$action_path/dist" -a -x "$action_path/node_modules"
+          sudo -n -u "$u" -- bash -c '
+            bad=0
+            for p in "$@"; do
+              if [[ -r "$p" || ( -d "$p" && -x "$p" ) ]]; then
+                echo "::error::$(id -un) can read $p"
+                bad=1
+              fi
+            done
+            exit "$bad"' check "${deny[@]}"
+        done
+        echo "guest users ready: ${users[*]} (${#deny[@]} runner-private paths denied)"
+
+    # design-v2 §7.3: the static-analysis tools run as a third guest user (TOOLS_USER in
+    # src/engines/users.ts, through bin/as-tools). Unlike the engine users it gets nothing in the
+    # runner tree: no workspace, no action dir, no $RUNNER_TEMP, no runner directory. It only reads
+    # the staging and tool dirs myrabbit creates under /tmp. Created on every run (cheap) so the
+    # orchestrator's sudo preflight is the same whether or not `tools` is enabled.
+    - name: Create static-analysis guest user
+      if: inputs.isolation != 'none'
+      shell: bash
+      run: |
+        set -euo pipefail
+        u=myrabbit-tools
+        command -v setfacl >/dev/null || { echo "::error::setfacl not found: install the acl package before myrabbit"; exit 1; }
+        sudo -n true || { echo "::error::myrabbit needs passwordless sudo inside the VM"; exit 1; }
+
+        workspace="$(realpath "$GITHUB_WORKSPACE")"
+        action_path="$(realpath "$GITHUB_ACTION_PATH")"
+        runner_temp="$(realpath "$RUNNER_TEMP")"
+        runner_user="$(id -un)"
+        runner_home="$(realpath "$HOME")"
+
+        # An explicit `u:<user>:---` entry on a directory removes read and traverse, overriding the
+        # "other" bits, so nothing beneath it is reachable. Deny the targets themselves and every
+        # runner-owned ancestor (home, runner root, _work, _actions, ...). System dirs stay as they are.
+        deny=("$workspace" "$action_path" "$runner_temp" "$runner_home")
+        for target in "$workspace" "$action_path" "$runner_temp"; do
+          d="$(dirname "$target")"
+          while [[ "$d" != "/" ]]; do
+            [[ "$(stat -c %U "$d")" == "$runner_user" ]] && deny+=("$d")
+            d="$(dirname "$d")"
+          done
+        done
+        mapfile -t deny < <(printf '%s\n' "${deny[@]}" | sort -u)
+
+        if ! id -u "$u" >/dev/null 2>&1; then
+          sudo -n useradd --system --create-home --shell /usr/sbin/nologin "$u"
+        fi
+        home="$(getent passwd "$u" | cut -d: -f6)"
+        sudo -n chmod 0700 "$home"
+        sudo -n setfacl -m "u:${u}:---" -- "${deny[@]}"
+
+        # Verify as the guest user: it can neither read nor enter anything denied, and it can
+        # still reach /tmp, where the tool and staging dirs live.
+        sudo -n -u "$u" -- bash -c '
+          bad=0
+          for p in "$@"; do
+            if [[ -r "$p" || -x "$p" ]]; then
+              echo "::error::$(id -un) can reach $p"
+              bad=1
+            fi
+          done
+          [[ -x /tmp ]] || { echo "::error::$(id -un) cannot reach /tmp"; bad=1; }
+          exit "$bad"' check "${deny[@]}"
+        echo "static-analysis guest user ready: $u (${#deny[@]} runner paths denied)"
+
+    - name: myrabbit review
+      shell: bash
+      env:
+        MYRABBIT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        MYRABBIT_BOT_LOGIN: ${{ inputs.bot-login }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude-oauth-token }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        CODEX_AUTH_JSON: ${{ inputs.codex-auth-json }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        MYRABBIT_ENGINES: ${{ inputs.engines }}
+        MYRABBIT_ISOLATION: ${{ inputs.isolation }}
+        MYRABBIT_PR: ${{ inputs.pr }}
+        MYRABBIT_TRUSTED_AUTHORS: ${{ inputs.trusted-authors }}
+      # The secrets leave the process environment before node starts: deleting them from
+      # process.env later would not change /proc/<pid>/environ, which a same-user engine could read
+      # (isolation none). They go into a 0600 file in a fresh 0700 dir under $RUNNER_TEMP, and
+      # `exec env -u …` replaces this shell with node without them. src/env.ts reads the file and
+      # removes it before anything else. printf is a builtin: no value is ever on a command line.
+      run: |
+        set -euo pipefail
+        umask 077
+        secrets_dir="$(mktemp -d "$RUNNER_TEMP/myrabbit-secrets.XXXXXX")"
+        for name in MYRABBIT_GITHUB_TOKEN CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY CODEX_AUTH_JSON OPENAI_API_KEY; do
+          printf '%s=%s\0' "$name" "${!name:-}"
+        done > "$secrets_dir/secrets"
+        exec env -u MYRABBIT_GITHUB_TOKEN -u CLAUDE_CODE_OAUTH_TOKEN -u ANTHROPIC_API_KEY -u CODEX_AUTH_JSON -u OPENAI_API_KEY \
+          "MYRABBIT_SECRETS_FILE=$secrets_dir/secrets" node "$GITHUB_ACTION_PATH/dist/main.js"

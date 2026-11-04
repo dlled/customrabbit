@@ -1,0 +1,78 @@
+{
+  "lock_version": 1,
+  "platform": "linux-x64",
+  "comment": "design-v2 §7.2. Every sha256 was computed from the downloaded file and matched the publisher's digest (GitHub release asset digest / PyPI sha256). Releases are at least two weeks old when pinned.",
+  "tools": {
+    "shellcheck": {
+      "version": "v0.11.0",
+      "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.gz",
+      "sha256": "b7af85e41cc99489dcc21d66c6d5f3685138f06d34651e6d34b42ec6d54fe6f6",
+      "archive": "tar.gz",
+      "member": "shellcheck-v0.11.0/shellcheck"
+    },
+    "actionlint": {
+      "version": "v1.7.12",
+      "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz",
+      "sha256": "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+      "archive": "tar.gz",
+      "member": "actionlint"
+    },
+    "hadolint": {
+      "version": "v2.15.1",
+      "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-linux-x86_64",
+      "sha256": "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507",
+      "archive": "raw"
+    },
+    "zizmor": {
+      "version": "v1.31.1",
+      "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.31.1/zizmor-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "d185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99",
+      "archive": "tar.gz",
+      "member": "zizmor"
+    },
+    "ruff": {
+      "version": "0.17.1",
+      "url": "https://github.com/astral-sh/ruff/releases/download/0.17.1/ruff-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "a293ac937715ae6fb6b64da86761598379e6149f40fbc00fde9ba8a2a562ac65",
+      "archive": "tar.gz",
+      "member": "ruff-x86_64-unknown-linux-gnu/ruff"
+    },
+    "squawk": {
+      "version": "v2.70.0",
+      "url": "https://github.com/sbdchd/squawk/releases/download/v2.70.0/squawk-linux-x64",
+      "sha256": "836ba2ab0c0ec30ae02c9f2cec065b341ff853765ceaa3965c22109c2f53eb1c",
+      "archive": "raw"
+    },
+    "gitleaks": {
+      "version": "v8.30.1",
+      "url": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
+      "sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+      "archive": "tar.gz",
+      "member": "gitleaks"
+    },
+    "yamllint": {
+      "version": "1.38.0",
+      "archive": "wheels",
+      "wheels": [
+        {
+          "name": "yamllint",
+          "version": "1.38.0",
+          "url": "https://files.pythonhosted.org/packages/05/92/aed08e68de6e6a3d7c2328ce7388072cd6affc26e2917197430b646aed02/yamllint-1.38.0-py3-none-any.whl",
+          "sha256": "fc394a5b3be980a4062607b8fdddc0843f4fa394152b6da21722f5d59013c220"
+        },
+        {
+          "name": "pyyaml",
+          "version": "6.0.3",
+          "url": "https://files.pythonhosted.org/packages/8b/9d/b3589d3877982d4f2329302ef98a8026e7f4443c765c46cfecc8858c6b4b/pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+          "sha256": "ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc"
+        },
+        {
+          "name": "pathspec",
+          "version": "1.1.1",
+          "url": "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl",
+          "sha256": "a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189"
+        }
+      ]
+    }
+  }
+}

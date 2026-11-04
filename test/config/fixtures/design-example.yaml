@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/dlled/customrabbit/main/schema/myrabbit.schema.json
+version: 1
+profile: chill
+request_changes_threshold: major
+language: en-US
+tone_instructions: ""
+style_guide:
+  auto: true
+  files: []
+path_filters: []
+path_instructions:
+  - path: "src/**/*.ts"
+    instructions: "Prefer explicit return types."
+auto_review:
+  enabled: true
+  drafts: false
+  ignore_title_keywords: ["WIP", "[skip review]"]
+  labels: ["!no-myrabbit"]
+engines:
+  claude: { enabled: true, model: claude-opus-5-5, effort: high, max_turns: 40, max_budget_usd: 3 }
+  codex:  { enabled: true, model: null, effort: high }
+  timeout_minutes: 12
+limits:
+  max_files: 150
+  max_diff_bytes: 400000
+  max_inline_comments: 15

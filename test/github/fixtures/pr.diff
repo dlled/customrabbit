@@ -1,0 +1,71 @@
+diff --git a/gone.txt b/gone.txt
+deleted file mode 100644
+index 3367afd..0000000
+--- a/gone.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-old
+diff --git a/img.bin b/img.bin
+index 8352675..1592e5c 100644
+Binary files a/img.bin and b/img.bin differ
+diff --git a/moved-from.md b/moved-to.md
+similarity index 73%
+rename from moved-from.md
+rename to moved-to.md
+index 7a28df3..935d636 100644
+--- a/moved-from.md
++++ b/moved-to.md
+@@ -1,4 +1,4 @@
+ alpha
+ beta
+-gamma
++GAMMA
+ delta
+diff --git a/new.ts b/new.ts
+new file mode 100644
+index 0000000..07f33c4
+--- /dev/null
++++ b/new.ts
+@@ -0,0 +1,2 @@
++new
++file
+diff --git a/nonl.txt b/nonl.txt
+new file mode 100644
+index 0000000..20cbb4d
+--- /dev/null
++++ b/nonl.txt
+@@ -0,0 +1 @@
++no newline
+\ No newline at end of file
+diff --git a/src.ts b/src.ts
+index f696b4b..59a6301 100644
+--- a/src.ts
++++ b/src.ts
+@@ -1,5 +1,5 @@
+ line1
+-line2
++LINE2 changed
+ line3
+ line4
+ line5
+@@ -16,5 +16,6 @@ line15
+ line16
+ line17
+ line18
++added after 18
+ line19
+ line20
+diff --git a/with space.txt b/with space.txt
+index 587be6b..b77b4eb 100644
+--- a/with space.txt	
++++ b/with space.txt	
+@@ -1 +1,2 @@
+ x
++y
+diff --git "a/\303\274n\303\257.txt" "b/\303\274n\303\257.txt"
+new file mode 100644
+index 0000000..5fb50d3
+--- /dev/null
++++ "b/\303\274n\303\257.txt"
+@@ -0,0 +1 @@
++héllo

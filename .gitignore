@@ -1,0 +1,10 @@
+node_modules/
+coverage/
+*.log
+.env
+.env.*
+.DS_Store
+.claude/worktrees/
+# dist/ is committed on purpose (design.md §3): the action runs it without a build step.
+*.pem
+*.key

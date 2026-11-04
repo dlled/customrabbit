@@ -1,0 +1,4 @@
+profile: chill
+engines:
+  claude:
+    efort: low

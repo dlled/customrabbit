@@ -1,0 +1,447 @@
+[
+  {
+    "ident": "artipacked",
+    "desc": "credential persistence through GitHub Actions artifacts",
+    "url": "https://docs.zizmor.sh/audits/#artipacked",
+    "determinations": {
+      "confidence": "Low",
+      "severity": "Medium",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "/stage/.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "does not set persist-credentials: false",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "quality"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              }
+            ]
+          },
+          "feature_kind": "Normal",
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 7,
+              "column": 8
+            },
+            "end_point": {
+              "row": 7,
+              "column": 33
+            },
+            "offset_span": {
+              "start": 162,
+              "end": 187
+            }
+          },
+          "feature": "uses: actions/checkout@v4",
+          "comments": []
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": [
+      {
+        "title": "set persist-credentials: false",
+        "key": {
+          "Local": {
+            "verbatim_path": "/stage/.github/workflows/ci.yml"
+          }
+        },
+        "disposition": "unsafe"
+      }
+    ]
+  },
+  {
+    "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
+    "determinations": {
+      "confidence": "Medium",
+      "severity": "Medium",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "/stage/.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "this job",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "quality"
+              }
+            ]
+          },
+          "feature_kind": "Normal",
+          "kind": "Related"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 4,
+              "column": 2
+            },
+            "end_point": {
+              "row": 10,
+              "column": 0
+            },
+            "offset_span": {
+              "start": 37,
+              "end": 270
+            }
+          },
+          "feature": "  quality:\n    runs-on: [self-hosted, wtr-ci, \"wtr-${{ github.run_id }}-${{ github.run_attempt }}-quality\"]\n    steps:\n      - uses: actions/checkout@v4\n      - run: echo \"${{ github.event.pull_request.title }}\"\n      - run: echo $FOO\n",
+          "comments": []
+        }
+      },
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "/stage/.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "default permissions used due to no permissions: block",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "quality"
+              }
+            ]
+          },
+          "feature_kind": "Normal",
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 4,
+              "column": 2
+            },
+            "end_point": {
+              "row": 10,
+              "column": 0
+            },
+            "offset_span": {
+              "start": 37,
+              "end": 270
+            }
+          },
+          "feature": "  quality:\n    runs-on: [self-hosted, wtr-ci, \"wtr-${{ github.run_id }}-${{ github.run_attempt }}-quality\"]\n    steps:\n      - uses: actions/checkout@v4\n      - run: echo \"${{ github.event.pull_request.title }}\"\n      - run: echo $FOO\n",
+          "comments": []
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": []
+  },
+  {
+    "ident": "template-injection",
+    "desc": "code injection via template expansion",
+    "url": "https://docs.zizmor.sh/audits/#template-injection",
+    "determinations": {
+      "confidence": "High",
+      "severity": "High",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "/stage/.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "this step",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "quality"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 1
+              }
+            ]
+          },
+          "feature_kind": "Normal",
+          "kind": "Hidden"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 8,
+              "column": 8
+            },
+            "end_point": {
+              "row": 8,
+              "column": 58
+            },
+            "offset_span": {
+              "start": 196,
+              "end": 246
+            }
+          },
+          "feature": "run: echo \"${{ github.event.pull_request.title }}\"",
+          "comments": []
+        }
+      },
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "/stage/.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "may expand into attacker-controllable code",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "quality"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 1
+              },
+              {
+                "Key": "run"
+              }
+            ]
+          },
+          "feature_kind": {
+            "Subfeature": {
+              "after": 7,
+              "fragment": {
+                "Raw": "github.event.pull_request.title"
+              }
+            }
+          },
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 8,
+              "column": 23
+            },
+            "end_point": {
+              "row": 8,
+              "column": 54
+            },
+            "offset_span": {
+              "start": 211,
+              "end": 242
+            }
+          },
+          "feature": "echo \"${{ github.event.pull_request.title }}\"",
+          "comments": []
+        }
+      },
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "/stage/.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "this run block",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "quality"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 1
+              },
+              {
+                "Key": "run"
+              }
+            ]
+          },
+          "feature_kind": "KeyOnly",
+          "kind": "Related"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 8,
+              "column": 8
+            },
+            "end_point": {
+              "row": 8,
+              "column": 11
+            },
+            "offset_span": {
+              "start": 196,
+              "end": 199
+            }
+          },
+          "feature": "run",
+          "comments": []
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": []
+  },
+  {
+    "ident": "unpinned-uses",
+    "desc": "unpinned action reference",
+    "url": "https://docs.zizmor.sh/audits/#unpinned-uses",
+    "determinations": {
+      "confidence": "High",
+      "severity": "High",
+      "persona": "Regular"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "/stage/.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "this step",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "quality"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              }
+            ]
+          },
+          "feature_kind": "Normal",
+          "kind": "Hidden"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 7,
+              "column": 8
+            },
+            "end_point": {
+              "row": 7,
+              "column": 33
+            },
+            "offset_span": {
+              "start": 162,
+              "end": 187
+            }
+          },
+          "feature": "uses: actions/checkout@v4",
+          "comments": []
+        }
+      },
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "verbatim_path": "/stage/.github/workflows/ci.yml"
+            }
+          },
+          "annotation": "action is not pinned to a hash (required by blanket policy)",
+          "route": {
+            "route": [
+              {
+                "Key": "jobs"
+              },
+              {
+                "Key": "quality"
+              },
+              {
+                "Key": "steps"
+              },
+              {
+                "Index": 0
+              },
+              {
+                "Key": "uses"
+              }
+            ]
+          },
+          "feature_kind": {
+            "Subfeature": {
+              "after": 0,
+              "fragment": {
+                "Raw": "actions/checkout@v4"
+              }
+            }
+          },
+          "kind": "Primary"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 7,
+              "column": 14
+            },
+            "end_point": {
+              "row": 7,
+              "column": 33
+            },
+            "offset_span": {
+              "start": 168,
+              "end": 187
+            }
+          },
+          "feature": "actions/checkout@v4",
+          "comments": []
+        }
+      }
+    ],
+    "ignored": false,
+    "fixes": []
+  }
+]

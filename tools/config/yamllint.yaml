@@ -1,0 +1,16 @@
+# Pinned yamllint config (design-v2 §7.1). A repository's .yamllint is never read.
+# Only problems that break or silently change YAML meaning; style is the repository's business.
+extends: relaxed
+rules:
+  line-length: disable
+  indentation: disable
+  trailing-spaces: disable
+  empty-lines: disable
+  new-line-at-end-of-file: disable
+  comments: disable
+  comments-indentation: disable
+  document-start: disable
+  key-duplicates: enable
+  truthy:
+    allowed-values: ["true", "false"]
+    check-keys: false
