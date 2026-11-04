@@ -57,7 +57,7 @@ jobs:
           permission-issues: read
       # Two-commit release: scripts/release.sh rewrites this line to the reviewed code commit.
       # The all-zero SHA means "not released yet" and fails loudly if called.
-      - uses: dlled/customrabbit@0000000000000000000000000000000000000000 # myrabbit-action-pin
+      - uses: dlled/customrabbit@d347409ab42a8fd1b058f3b469b99f4cae937d63 # myrabbit-action-pin
         with: # inputs, not env: env on a composite reaches every inner step
           github-token: ${{ steps.app.outputs.token }}
           bot-login: ${{ steps.app.outputs.app-slug }}[bot]
